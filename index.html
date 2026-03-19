@@ -1,0 +1,376 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>音频频谱后处理实验工具</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      margin: 0;
+      font-family: "Segoe UI", "PingFang SC", "Microsoft YaHei", sans-serif;
+      background: #f5f7fb;
+      color: #1f2937;
+    }
+    .container {
+      max-width: 880px;
+      margin: 40px auto;
+      padding: 24px;
+    }
+    .card {
+      background: #fff;
+      border-radius: 16px;
+      padding: 24px;
+      box-shadow: 0 10px 30px rgba(0,0,0,0.08);
+    }
+    h1 {
+      margin-top: 0;
+      font-size: 28px;
+    }
+    p.desc {
+      line-height: 1.75;
+      color: #4b5563;
+    }
+    .upload-box {
+      margin: 20px 0;
+      padding: 24px;
+      border: 2px dashed #cbd5e1;
+      border-radius: 14px;
+      background: #f8fafc;
+    }
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 18px;
+    }
+    button {
+      border: none;
+      border-radius: 10px;
+      padding: 12px 18px;
+      font-size: 15px;
+      cursor: pointer;
+      background: #2563eb;
+      color: white;
+      transition: 0.2s;
+    }
+    button:hover { opacity: 0.92; }
+    button:disabled {
+      background: #94a3b8;
+      cursor: not-allowed;
+    }
+    .secondary {
+      background: #10b981;
+    }
+    .status {
+      margin-top: 16px;
+      padding: 14px 16px;
+      border-radius: 10px;
+      background: #eef2ff;
+      color: #3730a3;
+      min-height: 48px;
+      white-space: pre-line;
+      line-height: 1.6;
+    }
+    .audio-section {
+      margin-top: 20px;
+      display: grid;
+      gap: 16px;
+    }
+    .audio-block {
+      padding: 16px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+      background: #fafafa;
+    }
+    audio {
+      width: 100%;
+      margin-top: 10px;
+    }
+    .tips {
+      margin-top: 20px;
+      font-size: 14px;
+      color: #6b7280;
+      line-height: 1.7;
+      background: #f8fafc;
+      border-radius: 12px;
+      padding: 16px;
+    }
+    code {
+      background: #eef2ff;
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <div class="card">
+      <h1>AI/人类音乐频谱后处理实验工具</h1>
+      <p class="desc">
+        本工具基于 <strong>Web Audio API</strong>，在浏览器本地对音频进行离线处理，用于学术实验。
+        所有处理均在本地完成，不上传服务器。
+      </p>
+
+      <div class="upload-box">
+        <label for="fileInput"><strong>选择音频文件（WAV / MP3）</strong></label>
+        <br /><br />
+        <input id="fileInput" type="file" accept=".wav,.mp3,audio/wav,audio/mpeg" />
+        <div class="controls">
+          <button id="processBtn" disabled>开始处理</button>
+          <button id="downloadBtn" class="secondary" disabled>下载处理后 WAV</button>
+        </div>
+        <div id="status" class="status">等待上传音频文件...</div>
+      </div>
+
+      <div class="audio-section">
+        <div class="audio-block">
+          <strong>原始音频预览</strong>
+          <audio id="originalAudio" controls></audio>
+        </div>
+        <div class="audio-block">
+          <strong>处理后音频预览</strong>
+          <audio id="processedAudio" controls></audio>
+        </div>
+      </div>
+
+      <div class="tips">
+        <strong>当前处理链：</strong><br />
+        1. 250 Hz 峰值滤波：Q=1.0，+0.6 dB<br />
+        2. 3.2 kHz 峰值滤波：Q=0.9，-1.2 dB<br />
+        3. 10 kHz 高频轻微衰减：高频搁架 -0.8 dB<br />
+        4. 18 kHz 低通：串联两个二阶 lowpass，近似更陡滚降<br />
+        5. 注入约 -60 dBFS 宽带白噪声
+      </div>
+    </div>
+  </div>
+
+  <script>
+    const fileInput = document.getElementById("fileInput");
+    const processBtn = document.getElementById("processBtn");
+    const downloadBtn = document.getElementById("downloadBtn");
+    const statusEl = document.getElementById("status");
+    const originalAudio = document.getElementById("originalAudio");
+    const processedAudio = document.getElementById("processedAudio");
+
+    let selectedFile = null;
+    let processedWavBlob = null;
+
+    fileInput.addEventListener("change", () => {
+      const file = fileInput.files[0];
+      if (!file) return;
+
+      selectedFile = file;
+      processBtn.disabled = false;
+      downloadBtn.disabled = true;
+      processedWavBlob = null;
+
+      const objectURL = URL.createObjectURL(file);
+      originalAudio.src = objectURL;
+
+      statusEl.textContent =
+        `已选择文件：${file.name}\n` +
+        `大小：${(file.size / 1024 / 1024).toFixed(2)} MB\n` +
+        `点击“开始处理”进行离线音频实验处理。`;
+    });
+
+    processBtn.addEventListener("click", async () => {
+      if (!selectedFile) return;
+
+      try {
+        processBtn.disabled = true;
+        downloadBtn.disabled = true;
+        statusEl.textContent = "正在读取音频文件...";
+
+        const arrayBuffer = await selectedFile.arrayBuffer();
+
+        const realtimeCtx = new (window.AudioContext || window.webkitAudioContext)();
+        const decodedBuffer = await realtimeCtx.decodeAudioData(arrayBuffer.slice(0));
+
+        statusEl.textContent =
+          "音频解码完成。\n正在创建离线处理上下文并渲染...";
+
+        const processedBuffer = await processAudioOffline(decodedBuffer);
+
+        statusEl.textContent =
+          "离线渲染完成。\n正在导出 WAV 文件...";
+
+        processedWavBlob = audioBufferToWavBlob(processedBuffer, false);
+
+        const processedURL = URL.createObjectURL(processedWavBlob);
+        processedAudio.src = processedURL;
+
+        downloadBtn.disabled = false;
+        statusEl.textContent =
+          "处理完成。\n可以试听处理后音频，或点击按钮下载 WAV 文件。";
+
+        await realtimeCtx.close();
+      } catch (err) {
+        console.error(err);
+        statusEl.textContent = "处理失败：\n" + err.message;
+      } finally {
+        processBtn.disabled = false;
+      }
+    });
+
+    downloadBtn.addEventListener("click", () => {
+      if (!processedWavBlob) return;
+
+      const a = document.createElement("a");
+      const url = URL.createObjectURL(processedWavBlob);
+      a.href = url;
+      a.download = "processed_output.wav";
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+    });
+
+    async function processAudioOffline(inputBuffer) {
+      const numberOfChannels = inputBuffer.numberOfChannels;
+      const sampleRate = inputBuffer.sampleRate;
+      const length = inputBuffer.length;
+
+      const offlineCtx = new OfflineAudioContext(
+        numberOfChannels,
+        length,
+        sampleRate
+      );
+
+      const source = offlineCtx.createBufferSource();
+      source.buffer = inputBuffer;
+
+      const peak250 = offlineCtx.createBiquadFilter();
+      peak250.type = "peaking";
+      peak250.frequency.value = 250;
+      peak250.Q.value = 1.0;
+      peak250.gain.value = 0.6;
+
+      const peak3200 = offlineCtx.createBiquadFilter();
+      peak3200.type = "peaking";
+      peak3200.frequency.value = 3200;
+      peak3200.Q.value = 0.9;
+      peak3200.gain.value = -1.2;
+
+      const highShelf10k = offlineCtx.createBiquadFilter();
+      highShelf10k.type = "highshelf";
+      highShelf10k.frequency.value = 10000;
+      highShelf10k.gain.value = -0.8;
+
+      const lowpass18k_stage1 = offlineCtx.createBiquadFilter();
+      lowpass18k_stage1.type = "lowpass";
+      lowpass18k_stage1.frequency.value = 18000;
+      lowpass18k_stage1.Q.value = 0.707;
+
+      const lowpass18k_stage2 = offlineCtx.createBiquadFilter();
+      lowpass18k_stage2.type = "lowpass";
+      lowpass18k_stage2.frequency.value = 18000;
+      lowpass18k_stage2.Q.value = 0.707;
+
+      const noiseBuffer = createWhiteNoiseBuffer(
+        offlineCtx,
+        length,
+        sampleRate,
+        numberOfChannels,
+        dbToLinear(-60)
+      );
+      const noiseSource = offlineCtx.createBufferSource();
+      noiseSource.buffer = noiseBuffer;
+
+      const mixGain = offlineCtx.createGain();
+      mixGain.gain.value = 1.0;
+
+      source.connect(peak250);
+      peak250.connect(peak3200);
+      peak3200.connect(highShelf10k);
+      highShelf10k.connect(lowpass18k_stage1);
+      lowpass18k_stage1.connect(lowpass18k_stage2);
+      lowpass18k_stage2.connect(mixGain);
+
+      noiseSource.connect(mixGain);
+      mixGain.connect(offlineCtx.destination);
+
+      source.start(0);
+      noiseSource.start(0);
+
+      const renderedBuffer = await offlineCtx.startRendering();
+      return renderedBuffer;
+    }
+
+    function createWhiteNoiseBuffer(context, length, sampleRate, channels, amplitude) {
+      const buffer = context.createBuffer(channels, length, sampleRate);
+
+      for (let ch = 0; ch < channels; ch++) {
+        const data = buffer.getChannelData(ch);
+        for (let i = 0; i < length; i++) {
+          data[i] = (Math.random() * 2 - 1) * amplitude;
+        }
+      }
+      return buffer;
+    }
+
+    function dbToLinear(db) {
+      return Math.pow(10, db / 20);
+    }
+
+    function audioBufferToWavBlob(audioBuffer, float32 = false) {
+      const numChannels = audioBuffer.numberOfChannels;
+      const sampleRate = audioBuffer.sampleRate;
+      const numFrames = audioBuffer.length;
+      const bitDepth = float32 ? 32 : 16;
+      const bytesPerSample = bitDepth / 8;
+      const blockAlign = numChannels * bytesPerSample;
+      const dataSize = numFrames * blockAlign;
+      const buffer = new ArrayBuffer(44 + dataSize);
+      const view = new DataView(buffer);
+
+      writeString(view, 0, "RIFF");
+      view.setUint32(4, 36 + dataSize, true);
+      writeString(view, 8, "WAVE");
+
+      writeString(view, 12, "fmt ");
+      view.setUint32(16, 16, true);
+      view.setUint16(20, float32 ? 3 : 1, true);
+      view.setUint16(22, numChannels, true);
+      view.setUint32(24, sampleRate, true);
+      view.setUint32(28, sampleRate * blockAlign, true);
+      view.setUint16(32, blockAlign, true);
+      view.setUint16(34, bitDepth, true);
+
+      writeString(view, 36, "data");
+      view.setUint32(40, dataSize, true);
+
+      const channelData = [];
+      for (let ch = 0; ch < numChannels; ch++) {
+        channelData.push(audioBuffer.getChannelData(ch));
+      }
+
+      let offset = 44;
+
+      for (let i = 0; i < numFrames; i++) {
+        for (let ch = 0; ch < numChannels; ch++) {
+          let sample = channelData[ch][i];
+          sample = Math.max(-1, Math.min(1, sample));
+
+          if (float32) {
+            view.setFloat32(offset, sample, true);
+            offset += 4;
+          } else {
+            const intSample = sample < 0 ? sample * 0x8000 : sample * 0x7fff;
+            view.setInt16(offset, intSample, true);
+            offset += 2;
+          }
+        }
+      }
+
+      return new Blob([buffer], { type: "audio/wav" });
+    }
+
+    function writeString(view, offset, string) {
+      for (let i = 0; i < string.length; i++) {
+        view.setUint8(offset + i, string.charCodeAt(i));
+      }
+    }
+  </script>
+</body>
+</html>
