@@ -1,0 +1,388 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>Fusion Audio Lab v0.4.1</title>
+<style>
+:root{--bg:#0d1020;--panel:#161b31;--panel2:#1d2340;--line:rgba(255,255,255,.08);--text:#eef2ff;--muted:#aeb9db;--gold:#f4b54f;--blue:#65b5ff;--red:#ff6b6b;--green:#87dfb3}
+*{box-sizing:border-box} body{margin:0;font-family:Inter,"PingFang SC","Microsoft YaHei",sans-serif;color:var(--text);background:linear-gradient(180deg,#0b0e18,#12172b 50%,#151226);min-height:100vh}
+.wrap{max-width:1560px;margin:0 auto;padding:20px}
+.hero{display:flex;justify-content:space-between;gap:18px;align-items:flex-end;flex-wrap:wrap;margin-bottom:16px}
+.badge{display:inline-flex;padding:7px 12px;border-radius:999px;background:rgba(244,181,79,.12);border:1px solid rgba(244,181,79,.28);color:#ffe3aa;font-weight:800;font-size:12px}
+h1{margin:10px 0 8px;font-size:clamp(28px,4vw,48px);line-height:1}
+.hero p{margin:0;color:var(--muted);line-height:1.7;max-width:850px}
+.side{display:grid;gap:10px;min-width:280px}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.stat{padding:12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.stat .k{font-size:12px;color:var(--muted)} .stat .v{font-size:20px;font-weight:900;margin-top:4px}
+.layout{display:grid;grid-template-columns:380px 1fr;gap:18px}
+.card{background:linear-gradient(180deg,var(--panel),var(--panel2));border:1px solid var(--line);border-radius:20px;padding:16px;box-shadow:0 16px 45px rgba(0,0,0,.3)}
+.sec{font-size:13px;color:#ffe7bd;font-weight:800;text-transform:uppercase;letter-spacing:.06em;margin:0 0 12px}
+.field{margin-bottom:12px} label{display:block;font-size:12px;color:var(--muted);margin-bottom:7px}
+input[type=file],input[type=text],select{width:100%;padding:12px 14px;border-radius:14px;border:1px solid rgba(255,255,255,.1);background:#0e1325;color:var(--text);outline:none}
+input::placeholder{color:#7784aa}
+.grid2{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.actions{display:flex;gap:10px;flex-wrap:wrap}
+button{border:none;border-radius:14px;padding:12px 16px;font-weight:800;cursor:pointer}
+.primary{background:linear-gradient(180deg,#ffcf7d,#f4b54f);color:#332101}.ghost{background:rgba(255,255,255,.06);color:var(--text);border:1px solid rgba(255,255,255,.1)}
+.status{margin-top:12px;padding:12px 14px;border-radius:14px;background:rgba(101,181,255,.08);border:1px solid rgba(101,181,255,.18);line-height:1.7;font-size:13px;min-height:66px}
+audio{width:100%;margin-top:12px}
+.tabs{display:flex;gap:10px;flex-wrap:wrap;margin-bottom:12px}
+.tab{padding:10px 14px;border-radius:12px;background:rgba(255,255,255,.05);border:1px solid var(--line);font-weight:800;font-size:13px;cursor:pointer}
+.tab.active{background:rgba(244,181,79,.12);border-color:rgba(244,181,79,.28);color:#ffe3aa}
+.view{display:none}.view.active{display:block}
+.meta{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:12px}
+.box{padding:12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+.n{font-size:12px;color:var(--muted)} .v{font-size:22px;font-weight:900;margin-top:4px}
+.small{font-size:12px;color:var(--muted);line-height:1.7}
+.timeline{display:grid;gap:8px;margin-top:12px}
+.row{padding:11px 12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--line);cursor:pointer}
+.row:hover{border-color:rgba(101,181,255,.28)}
+kbd{background:#0d1326;border:1px solid rgba(255,255,255,.08);border-radius:6px;padding:2px 6px;color:#dbe7ff}
+.kwrap,.rollWrap{margin-top:12px;border-radius:16px;border:1px solid var(--line);overflow:auto;background:#0a0d15;padding:14px}
+.keyboard{position:relative;height:172px;min-width:3640px}
+.white,.black{position:absolute;display:flex;align-items:flex-end;justify-content:center;user-select:none;border-radius:0 0 8px 8px;font-size:9px;font-weight:700;cursor:pointer}
+.white{width:40px;height:160px;background:linear-gradient(180deg,#fff,#e8edf7);border:1px solid #9ca5c1;color:#334}
+.black{width:26px;height:98px;background:linear-gradient(180deg,#252b40,#05070c);border:1px solid #000;color:#dbe7ff;z-index:2}
+.white.base{background:linear-gradient(180deg,#a9d6ff,#65b5ff);color:#07101b}
+.black.base{background:linear-gradient(180deg,#6db9ff,#347fdb);color:#041018}
+.white.current,.black.current{background:linear-gradient(180deg,#ffadad,#ff6b6b)!important;color:#250000!important}
+.white.flash,.black.flash{box-shadow:0 0 0 3px rgba(255,255,255,.25) inset,0 0 18px rgba(255,107,107,.35)}
+.rollGrid{position:relative;min-width:1200px;height:1848px;background:
+linear-gradient(180deg,rgba(255,255,255,.04) 1px,transparent 1px) 0 0/100% 21px,
+linear-gradient(90deg,rgba(255,255,255,.05) 1px,transparent 1px) 0 0/48px 100%,
+linear-gradient(180deg,rgba(255,255,255,.02),rgba(255,255,255,.01))}
+.labels{position:absolute;left:0;top:0;width:54px;height:100%;background:rgba(7,10,18,.95);border-right:1px solid var(--line);z-index:3}
+.lab{position:absolute;left:0;width:54px;height:21px;padding-right:6px;text-align:right;line-height:21px;font-size:10px;color:#8ea1cf}
+.note{position:absolute;height:18px;border-radius:8px;background:linear-gradient(180deg,#97d3ff,#4ca0ff);border:1px solid rgba(255,255,255,.2);box-shadow:0 8px 16px rgba(76,160,255,.18);cursor:grab}
+.note.chord{background:linear-gradient(180deg,#ffb27a,#ff6b6b);box-shadow:0 8px 16px rgba(255,107,107,.18)}
+.sy{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.list{display:grid;gap:10px}
+.item{padding:12px;border-radius:14px;background:rgba(255,255,255,.04);border:1px solid var(--line)}
+@media (max-width:1100px){.layout{grid-template-columns:1fr}.meta,.grid2,.sy,.stats{grid-template-columns:1fr 1fr}}
+@media (max-width:720px){.wrap{padding:12px}.meta,.grid2,.sy,.stats{grid-template-columns:1fr}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <div class="hero">
+    <div>
+      <div class="badge">Fusion Audio Lab · v0.4.1</div>
+      <h1>88键钢琴卷帘 + 记录页和弦键盘</h1>
+      <p>这一版正式补上 <strong>88 键钢琴卷帘</strong>、<strong>记录页和弦键盘</strong>、<strong>点击记录联动发声</strong>，并对 MIDI 检测增加了平滑与合并逻辑，减少乱跳。</p>
+    </div>
+    <div class="side">
+      <div class="stats">
+        <div class="stat"><div class="k">版本</div><div class="v">0.4.1</div></div>
+        <div class="stat"><div class="k">模式</div><div class="v" id="sMode">-</div></div>
+        <div class="stat"><div class="k">事件数</div><div class="v" id="sCount">0</div></div>
+      </div>
+      <div class="small">用途仍然是：扒大致轮廓、确定主音/和弦走向、给 Sytrus 一个更直观的复刻起点。</div>
+    </div>
+  </div>
+
+  <div class="layout">
+    <div class="card">
+      <h3 class="sec">分析输入</h3>
+      <div class="field">
+        <label>音频文件</label>
+        <input id="file" type="file" accept="audio/*">
+      </div>
+      <div class="grid2">
+        <div class="field">
+          <label>检测模式</label>
+          <select id="mode">
+            <option value="midi">MIDI 大致识别绘制</option>
+            <option value="chord">和弦识别绘制</option>
+          </select>
+        </div>
+        <div class="field">
+          <label>Sytrus 目标</label>
+          <select id="style">
+            <option value="sytrus">FL / Sytrus</option>
+            <option value="lead">Lead / Hook</option>
+            <option value="pad">Pad / Atmosphere</option>
+            <option value="pluck">Pluck / Keys</option>
+          </select>
+        </div>
+      </div>
+      <div class="field">
+        <label>备注</label>
+        <input id="hint" type="text" placeholder="例如：副歌主旋律、不要太亮、像钟琴">
+      </div>
+      <div class="actions">
+        <button class="primary" id="analyze">开始分析</button>
+        <button class="ghost" id="reset">重置</button>
+      </div>
+      <div class="status" id="status">等待上传音频。分析后会生成：记录表、记录页和弦键盘、88 键卷帘、Sytrus 中文参考。</div>
+      <audio id="audio" controls></audio>
+
+      <h3 class="sec" style="margin-top:16px">总览静态键盘</h3>
+      <div class="small">蓝色表示整段里出现过的参考音；红色表示当前播放到或当前点击记录的音组。</div>
+      <div class="kwrap"><div id="overviewKeyboard" class="keyboard"></div></div>
+    </div>
+
+    <div class="card">
+      <div class="tabs">
+        <button class="tab active" data-tab="overview">总览</button>
+        <button class="tab" data-tab="record">变化记录</button>
+        <button class="tab" data-tab="roll">88键卷帘</button>
+        <button class="tab" data-tab="sytrus">Sytrus 中文面板</button>
+      </div>
+
+      <div class="view active" id="overview">
+        <div class="meta">
+          <div class="box"><div class="n">整体判断</div><div class="v" id="mType">-</div></div>
+          <div class="box"><div class="n">中心音</div><div class="v" id="mRoot">-</div></div>
+          <div class="box"><div class="n">明亮度</div><div class="v" id="mBright">-</div></div>
+          <div class="box"><div class="n">稳定度</div><div class="v" id="mStable">-</div></div>
+        </div>
+        <div class="box" id="summary">上传音频后会在这里显示整体总结。</div>
+      </div>
+
+      <div class="view" id="record">
+        <div class="small">点击任意记录行会：<kbd>跳转音频</kbd> + <kbd>键盘联动</kbd> + <kbd>整组发声</kbd>。播放音频时，这个键盘也会实时跟着变化。</div>
+        <div class="timeline" id="timeline"></div>
+        <div class="kwrap"><div id="recordKeyboard" class="keyboard"></div></div>
+      </div>
+
+      <div class="view" id="roll">
+        <div class="small">从 <strong>A0 到 C8</strong> 的完整 88 键卷帘。音符块可拖动，方便你大致整理思路。</div>
+        <div class="rollWrap"><div id="rollGrid" class="rollGrid"></div></div>
+      </div>
+
+      <div class="view" id="sytrus">
+        <div class="sy">
+          <div class="list" id="params"></div>
+          <div class="list" id="presets"></div>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+const NOTE_NAMES=['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+const A0=21,C8=108;
+const S={file:null,url:'',buf:null,events:[],mode:'midi',current:null,baseNotes:[]};
+const E={
+ file:gid('file'),mode:gid('mode'),style:gid('style'),hint:gid('hint'),analyze:gid('analyze'),reset:gid('reset'),status:gid('status'),audio:gid('audio'),
+ sMode:gid('sMode'),sCount:gid('sCount'),mType:gid('mType'),mRoot:gid('mRoot'),mBright:gid('mBright'),mStable:gid('mStable'),summary:gid('summary'),
+ timeline:gid('timeline'),overviewKeyboard:gid('overviewKeyboard'),recordKeyboard:gid('recordKeyboard'),rollGrid:gid('rollGrid'),params:gid('params'),presets:gid('presets')
+};
+initTabs(); initKeyboard(E.overviewKeyboard); initKeyboard(E.recordKeyboard); bind();
+
+function gid(id){return document.getElementById(id)}
+function initTabs(){document.querySelectorAll('.tab').forEach(b=>b.onclick=()=>{document.querySelectorAll('.tab').forEach(x=>x.classList.remove('active'));document.querySelectorAll('.view').forEach(x=>x.classList.remove('active'));b.classList.add('active');gid(b.dataset.tab).classList.add('active')})}
+function bind(){
+  E.file.onchange=()=>{const f=E.file.files[0]; if(!f) return; S.file=f; if(S.url) URL.revokeObjectURL(S.url); S.url=URL.createObjectURL(f); E.audio.src=S.url; setStatus('已加载：'+f.name+'，可以开始分析。')};
+  E.analyze.onclick=runAnalyze;
+  E.reset.onclick=resetAll;
+  E.audio.addEventListener('timeupdate',syncPlayback);
+}
+function setStatus(t){E.status.textContent=t}
+function resetAll(){
+  S.file=null; S.buf=null; S.events=[]; S.current=null; S.baseNotes=[]; E.file.value=''; E.audio.removeAttribute('src'); E.timeline.innerHTML=''; E.rollGrid.innerHTML=''; E.params.innerHTML=''; E.presets.innerHTML='';
+  clearKeyboard(E.overviewKeyboard); clearKeyboard(E.recordKeyboard); E.mType.textContent='-'; E.mRoot.textContent='-'; E.mBright.textContent='-'; E.mStable.textContent='-'; E.sMode.textContent='-'; E.sCount.textContent='0'; E.summary.textContent='上传音频后会在这里显示整体总结。'; setStatus('已重置。')
+}
+async function runAnalyze(){
+  if(!S.file){setStatus('请先上传音频文件。'); return}
+  setStatus('正在分析，请稍候...');
+  S.mode=E.mode.value; E.sMode.textContent=S.mode==='midi'?'MIDI':'和弦';
+  const ctx=new (window.AudioContext||window.webkitAudioContext)();
+  const arr=await S.file.arrayBuffer();
+  S.buf=await ctx.decodeAudioData(arr.slice(0));
+  const mono=toMono(S.buf);
+  const feat=analyzeFeature(mono,S.buf.sampleRate);
+  S.events=S.mode==='midi'?detectMidiEvents(mono,S.buf.sampleRate):detectChordEvents(mono,S.buf.sampleRate);
+  S.baseNotes=[...new Set(S.events.flatMap(x=>x.notes))];
+  renderSummary(feat); renderTimeline(); renderKeyboards(); renderRoll(); renderSytrus(feat);
+  E.sCount.textContent=String(S.events.length); setStatus('分析完成：已正式发布为 v0.4.1。'); if(ctx.close) ctx.close()
+}
+function toMono(buf){const out=new Float32Array(buf.length); for(let c=0;c<buf.numberOfChannels;c++){const d=buf.getChannelData(c); for(let i=0;i<buf.length;i++) out[i]+=d[i]/buf.numberOfChannels} return out}
+function analyzeFeature(sig,sr){
+  const n=Math.min(sig.length,sr*8); let rms=0,z=0; for(let i=0;i<n;i++){rms+=sig[i]*sig[i]; if(i>0&&Math.sign(sig[i])!==Math.sign(sig[i-1])) z++}
+  rms=Math.sqrt(rms/n); const bright=clamp(Math.round((z/n)*1800),1,99); const stable=clamp(Math.round((1-Math.min(.99,(z/n)*40))*100),1,99);
+  const root=noteName(freqToMidi(estimatePitch(sig.slice(0,Math.min(sig.length,sr*2)),sr)||261.63));
+  return {bright,stable,root}
+}
+function detectMidiEvents(sig,sr){
+  const hop=Math.floor(sr*.18), win=Math.floor(sr*.42), raw=[]; 
+  for(let i=0;i+win<sig.length;i+=hop){const frame=sig.slice(i,i+win); const amp=rms(frame); if(amp<0.01){raw.push(null); continue} const f=estimatePitch(frame,sr); raw.push(f?freqToMidi(f):null)}
+  const smooth=medianSmooth(raw,5).map(v=>v==null?null:clamp(v,A0,C8));
+  const events=[]; let cur=null, start=0;
+  for(let idx=0; idx<smooth.length; idx++){
+    const m=smooth[idx];
+    if(m==null){ if(cur!=null){ pushEvent(events,start,idx,cur,hop,sr); cur=null } continue }
+    if(cur==null){ cur=m; start=idx; continue }
+    if(Math.abs(m-cur)<=1){ cur=Math.round((cur+m)/2); continue }
+    pushEvent(events,start,idx,cur,hop,sr); cur=m; start=idx
+  }
+  if(cur!=null) pushEvent(events,start,smooth.length,cur,hop,sr);
+  return compactEvents(events,.12,.08)
+}
+function pushEvent(arr,startIdx,endIdx,midi,hop,sr){arr.push({type:'note',start:+((startIdx*hop)/sr).toFixed(2),dur:+(((endIdx-startIdx)*hop)/sr).toFixed(2),notes:[midi],label:noteName(midi)})}
+function compactEvents(events,minDur,mergeGap){
+  const out=[]; 
+  for(const e of events){
+    if(e.dur<minDur) continue;
+    const last=out[out.length-1];
+    if(last && last.label===e.label && e.start-(last.start+last.dur)<=mergeGap){ last.dur=+((e.start+e.dur)-last.start).toFixed(2) }
+    else out.push({...e})
+  }
+  return out
+}
+function detectChordEvents(sig,sr){
+  const hop=Math.floor(sr*1.0), win=Math.floor(sr*1.25), out=[];
+  for(let i=0,sec=0;i+win<sig.length;i+=hop,sec++){
+    const frame=sig.slice(i,i+win); const amp=rms(frame); if(amp<0.01) continue;
+    const pcs=chromaTop(frame,sr); const chord=classifyChord(pcs);
+    out.push({type:'chord',start:+(sec).toFixed(2),dur:1.0,notes:chord.notes,label:chord.name})
+  }
+  return out
+}
+function chromaTop(frame,sr){
+  const bins=new Array(12).fill(0);
+  const mids=[48,52,55,60,64,67,72,76,79];
+  for(const m of mids){
+    const p=goertzel(frame,sr,midiFreq(m));
+    bins[m%12]+=p; bins[(m+4)%12]+=goertzel(frame,sr,midiFreq(m+4))*0.6; bins[(m+7)%12]+=goertzel(frame,sr,midiFreq(m+7))*0.6;
+  }
+  return bins.map((v,i)=>({i,v})).sort((a,b)=>b.v-a.v).slice(0,4).map(x=>x.i)
+}
+function classifyChord(pcs){
+  for(const r of pcs){
+    const maj=[r,(r+4)%12,(r+7)%12]; if(maj.every(x=>pcs.includes(x))) return {name:NOTE_NAMES[r],notes:maj.map(pc=>60+pc)};
+    const min=[r,(r+3)%12,(r+7)%12]; if(min.every(x=>pcs.includes(x))) return {name:NOTE_NAMES[r]+'m',notes:min.map(pc=>60+pc)};
+  }
+  const r=pcs[0]??0; return {name:NOTE_NAMES[r]+'sus',notes:[60+r,65+r%12,67+r%12]}
+}
+function renderSummary(feat){
+  E.mType.textContent=S.mode==='midi'?'MIDI':'和弦'; E.mRoot.textContent=feat.root; E.mBright.textContent=feat.bright; E.mStable.textContent=feat.stable+'%';
+  E.summary.innerHTML='整体更接近 <strong>'+(S.mode==='midi'?'主旋律 / Hook 线条':'和弦推进 / 伴奏骨架')+'</strong>。中心参考音约为 <strong>'+feat.root+'</strong>，明亮度 <strong>'+feat.bright+'</strong>，稳定度 <strong>'+feat.stable+'%</strong>。这一版已补上 <strong>88 键卷帘</strong> 和 <strong>记录页键盘联动</strong>。'
+}
+function renderTimeline(){
+  E.timeline.innerHTML='';
+  S.events.forEach((ev,idx)=>{
+    const d=document.createElement('div'); d.className='row';
+    d.innerHTML='<strong>'+timeFmt(ev.start)+'</strong> · '+ev.label+'<br><span class="small">'+ev.notes.map(noteName).join(' ')+' · '+ev.dur.toFixed(2)+'s</span>';
+    d.onclick=()=>{E.audio.currentTime=ev.start; activateCurrent(ev.notes,true); flashRow(d)}
+    E.timeline.appendChild(d)
+  })
+}
+function flashRow(el){el.classList.add('flash'); setTimeout(()=>el.classList.remove('flash'),220)}
+function initKeyboard(container){
+  let white=0;
+  for(let midi=A0;midi<=C8;midi++){
+    const name=NOTE_NAMES[midi%12], black=name.includes('#');
+    if(!black){
+      const k=document.createElement('div'); k.className='white'; k.dataset.midi=midi; k.style.left=(white*40)+'px'; k.innerHTML='<span>'+noteName(midi)+'</span>'; k.onclick=()=>playNote(midi,.55);
+      container.appendChild(k); white++
+    }
+  }
+  white=0;
+  for(let midi=A0;midi<=C8;midi++){
+    const name=NOTE_NAMES[midi%12], black=name.includes('#');
+    if(!black){
+      const next=NOTE_NAMES[(midi+1)%12];
+      if(midi<C8 && next.includes('#')){
+        const k=document.createElement('div'); k.className='black'; k.dataset.midi=midi+1; k.style.left=(white*40+27)+'px'; k.innerHTML='<span>'+noteName(midi+1)+'</span>'; k.onclick=()=>playNote(midi+1,.5);
+        container.appendChild(k)
+      }
+      white++
+    }
+  }
+}
+function clearKeyboard(container){container.querySelectorAll('.white,.black').forEach(k=>k.classList.remove('base','current','flash'))}
+function paintBase(container){clearKeyboard(container); S.baseNotes.forEach(n=>{const el=container.querySelector('[data-midi="'+n+'"]'); if(el) el.classList.add('base')})}
+function activateCurrent(notes,withSound){
+  [E.overviewKeyboard,E.recordKeyboard].forEach(c=>{paintBase(c); notes.forEach(n=>{const el=c.querySelector('[data-midi="'+n+'"]'); if(el) el.classList.add('current','flash')})});
+  S.current=notes.slice(); if(withSound) playChord(notes,.58,.06);
+  setTimeout(()=>document.querySelectorAll('.flash').forEach(x=>x.classList.remove('flash')),260)
+}
+function renderKeyboards(){paintBase(E.overviewKeyboard); paintBase(E.recordKeyboard)}
+function syncPlayback(){
+  const t=E.audio.currentTime; const ev=S.events.find(x=>t>=x.start && t<x.start+x.dur);
+  if(ev){ if(!sameNotes(S.current,ev.notes)) activateCurrent(ev.notes,false) } else {renderKeyboards(); S.current=null}
+}
+function sameNotes(a,b){if(!a||!b||a.length!==b.length) return false; const x=[...a].sort((m,n)=>m-n), y=[...b].sort((m,n)=>m-n); return x.every((v,i)=>v===y[i])}
+function renderRoll(){
+  E.rollGrid.innerHTML=''; const labels=document.createElement('div'); labels.className='labels'; E.rollGrid.appendChild(labels);
+  const total=Math.max(8,...S.events.map(e=>e.start+e.dur)), pxPerSec=120, rowH=21, left=58;
+  E.rollGrid.style.width=(left+total*pxPerSec+120)+'px'; E.rollGrid.style.height=((C8-A0+1)*rowH)+'px';
+  for(let midi=C8, idx=0; midi>=A0; midi--, idx++){
+    const l=document.createElement('div'); l.className='lab'; l.style.top=(idx*rowH)+'px'; l.textContent=noteName(midi); labels.appendChild(l)
+  }
+  S.events.forEach(ev=>ev.notes.forEach(m=>{
+    const b=document.createElement('div'); b.className='note'+(ev.type==='chord'?' chord':'');
+    b.style.left=(left+ev.start*pxPerSec)+'px'; b.style.width=Math.max(28,ev.dur*pxPerSec-4)+'px';
+    b.style.top=((C8-m)*rowH+1)+'px'; makeDrag(b,rowH); E.rollGrid.appendChild(b)
+  }))
+}
+function makeDrag(el,rowH){
+  let dx=0,dy=0,sl=0,st=0,down=false;
+  el.addEventListener('pointerdown',e=>{down=true; dx=e.clientX; dy=e.clientY; sl=parseFloat(el.style.left); st=parseFloat(el.style.top); el.setPointerCapture(e.pointerId)});
+  el.addEventListener('pointermove',e=>{if(!down) return; el.style.left=(sl+e.clientX-dx)+'px'; el.style.top=(Math.max(0,st+e.clientY-dy))+'px'});
+  el.addEventListener('pointerup',()=>down=false)
+}
+function renderSytrus(feat){
+  E.params.innerHTML=''; E.presets.innerHTML='';
+  const rows=getParams(E.style.value,feat);
+  rows.forEach(r=>E.params.appendChild(card(r.k,r.v)));
+  getPresets(E.style.value).forEach(p=>E.presets.appendChild(card(p.name,p.desc)))
+}
+function card(k,v){const d=document.createElement('div'); d.className='item'; d.innerHTML='<strong>'+k+'</strong><div class="small" style="margin-top:6px">'+v+'</div>'; return d}
+function getParams(style,feat){
+  const b=clamp(Math.round(feat.bright/10)+4,1,10), rel=clamp(Math.round((100-feat.stable)/12)+2,1,10);
+  if(style==='pad') return [{k:'主界面 > 亮度',v:b+'/10'},{k:'运算器1 > 音量',v:'76%'},{k:'运算器2 > 调制',v:'41%'},{k:'滤波器1 > 截止',v:(b*8+8)+'%'},{k:'包络 > 释音',v:rel+'/10'},{k:'效果 > 混响',v:'38%'}];
+  if(style==='pluck') return [{k:'主界面 > 亮度',v:(b-1)+'/10'},{k:'运算器1 > 音量',v:'84%'},{k:'运算器2 > 调制',v:'24%'},{k:'滤波器1 > 截止',v:(b*7+8)+'%'},{k:'包络 > 起音',v:'1/10'},{k:'效果 > 延迟',v:'16%'}];
+  if(style==='lead') return [{k:'主界面 > 亮度',v:b+'/10'},{k:'运算器1 > 音量',v:'90%'},{k:'运算器2 > 调制',v:'34%'},{k:'滤波器1 > 截止',v:(b*8+14)+'%'},{k:'包络 > 起音',v:'1/10'},{k:'效果 > 立体声',v:'25%'}];
+  return [{k:'接近预设',v:'明亮 Hook Lead / 数字感 Pluck / 柔和 Pad 中选最接近的一类'},{k:'主界面 > 亮度',v:b+'/10'},{k:'运算器1 > 音量',v:'88%'},{k:'运算器2 > 调制',v:'30%'},{k:'滤波器1 > 截止',v:(b*8+10)+'%'},{k:'效果 > 混响',v:'22%'}]
+}
+function getPresets(style){
+  if(style==='pad') return [{name:'柔和 Pad',desc:'延音更长，空间更大，适合背景和弦。'},{name:'暗色 Atmos Pad',desc:'高频更收，适合铺底。'}];
+  if(style==='pluck') return [{name:'Bell Pluck',desc:'起音清晰，适合点缀和副旋律。'},{name:'Soft Keys',desc:'柔和短尾，适合编曲填充。'}];
+  if(style==='lead') return [{name:'尖锐主音',desc:'穿透更强，适合副歌 Hook。'},{name:'厚主音',desc:'更适合叠层做主旋律。'}];
+  return [{name:'明亮 Hook Lead',desc:'更亮、更快、更容易贴近流行主音。'},{name:'数字感 Pluck',desc:'更脆、更短，适合做点状动机。'}]
+}
+function estimatePitch(frame,sr){
+  const minLag=Math.floor(sr/1000), maxLag=Math.floor(sr/70); let bestLag=0,best=0;
+  for(let lag=minLag; lag<=maxLag; lag++){
+    let sum=0,energy1=0,energy2=0;
+    for(let i=0;i<frame.length-lag;i++){const a=frame[i], b=frame[i+lag]; sum+=a*b; energy1+=a*a; energy2+=b*b}
+    const norm=sum/Math.sqrt((energy1*energy2)||1);
+    if(norm>best){best=norm; bestLag=lag}
+  }
+  if(bestLag===0||best<0.18) return null;
+  const f=sr/bestLag; return (f>=55&&f<=1600)?f:null
+}
+function medianSmooth(arr,w){
+  const out=[]; const h=Math.floor(w/2);
+  for(let i=0;i<arr.length;i++){
+    const vals=[]; for(let j=i-h;j<=i+h;j++) if(arr[j]!=null) vals.push(arr[j]);
+    if(!vals.length){ out.push(null); continue }
+    vals.sort((a,b)=>a-b); out.push(vals[Math.floor(vals.length/2)])
+  } return out
+}
+function goertzel(frame,sr,f){
+  const w=2*Math.PI*f/sr, cos=Math.cos(w), coeff=2*cos; let s0=0,s1=0,s2=0;
+  for(let i=0;i<frame.length;i++){s0=frame[i]+coeff*s1-s2; s2=s1; s1=s0}
+  return s1*s1+s2*s2-coeff*s1*s2
+}
+function rms(a){let s=0; for(let i=0;i<a.length;i++) s+=a[i]*a[i]; return Math.sqrt(s/a.length)}
+function midiFreq(m){return 440*Math.pow(2,(m-69)/12)}
+function freqToMidi(f){return Math.round(69+12*Math.log2(f/440))}
+function noteName(m){return NOTE_NAMES[(m%12+12)%12]+(Math.floor(m/12)-1)}
+function timeFmt(t){const m=Math.floor(t/60), s=(t%60).toFixed(2).padStart(5,'0'); return String(m).padStart(2,'0')+':'+s}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v))}
+function playNote(m,d=.5){
+  const ctx=new (window.AudioContext||window.webkitAudioContext)(); const osc=ctx.createOscillator(); const g=ctx.createGain(); const f=ctx.createBiquadFilter();
+  osc.type='triangle'; osc.frequency.value=midiFreq(m); f.type='lowpass'; f.frequency.value=2200;
+  g.gain.setValueAtTime(.0001,ctx.currentTime); g.gain.exponentialRampToValueAtTime(.18,ctx.currentTime+.02); g.gain.exponentialRampToValueAtTime(.0001,ctx.currentTime+d);
+  osc.connect(f); f.connect(g); g.connect(ctx.destination); osc.start(); osc.stop(ctx.currentTime+d+.03); osc.onended=()=>ctx.close()
+}
+function playChord(notes,d=.6,st=.05){notes.forEach((n,i)=>setTimeout(()=>playNote(n,d),i*st*1000))}
+</script>
+</body>
+</html>
